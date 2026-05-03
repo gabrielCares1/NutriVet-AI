@@ -1,0 +1,27 @@
+Pasos para Ejecutar la Plataforma Web
+1. Preparación del Entorno
+Se recomienda el uso de un entorno virtual para aislar las dependencias:
+
+Bash
+python -m venv venv
+venv\Scripts\activate
+2. Instalación de Librerías
+Instala los requerimientos del sistema:
+
+Bash
+python -m pip install -r Requerimientos.txt
+3. Configuración de Credenciales
+En el archivo app.py, configura tu token de acceso de GitHub Models en las variables de entorno:
+
+Python
+os.environ["OPENAI_API_KEY"] = "TU_GITHUB_TOKEN_AQUÍ"
+4. Lanzamiento de la Interfaz
+Inicia el servidor web local con Streamlit:
+
+Bash
+python -m streamlit run app.py
+La plataforma se abrirá en tu navegador por defecto (usualmente en http://localhost:8501).
+
+👥 Equipo de Desarrollo
+Gabriel Cares - Ingeniería de Backend, IA y Estructura de Datos
+Abner Gutierrez - Frontend,Ampliación de base de datos
