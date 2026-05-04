@@ -1,123 +1,111 @@
 import os
 import json
-from langchain_core.documents import Document
+from dotenv import load_dotenv
+from openai import OpenAI
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_openai import OpenAIEmbeddings
+from langchain_chroma import Chroma
+from tabulate import tabulate 
 
-# 1. Credenciales
-os.environ["OPENAI_API_KEY"] = "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" # <-- Pon tu token "github_pat_..." aquí
-os.environ["OPENAI_BASE_URL"] = "https://models.inference.ai.azure.com"
 
-print("Iniciando el Asistente Nutricional...")
+load_dotenv()
+# Configuración de Clientes
+client = OpenAI(base_url=os.getenv("OPENAI_BASE_URL"), api_key=os.getenv("GITHUB_TOKEN"))
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("GITHUB_TOKEN"), check_embedding_ctx_length=False)
 
-# 2. Cargar tus datos (El JSON incrustado y el PDF)
-print("Cargando base de datos genética...")
+# 1. Función para preparar el PDF (Solo se corre una vez o cuando cambies el PDF)
+def preparar_base_conocimiento(pdf_path):
+    print("\n[SISTEMA] Procesando guías técnicas de la WSAVA...")
+    loader = PyPDFLoader(pdf_path)
+    paginas = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    docs = text_splitter.split_documents(paginas)
 
-# Incrustamos los datos directamente para evitar errores de lectura de archivos
-datos_crudos = """
-{
-  "mascotas": [
-    {
-      "especie": "Perro", "raza": "Golden Retriever",
-      "riesgos_geneticos": ["Displasia de cadera y codo", "Obesidad", "Cáncer"],
-      "dieta_organica_recomendada": ["Salmón salvaje (Omega-3)", "Arándanos", "Caldo de huesos"],
-      "alimentos_a_evitar": ["Exceso de carbohidratos (arroz blanco, maíz)"]
-    },
-    {
-      "especie": "Perro", "raza": "Bulldog Francés",
-      "riesgos_geneticos": ["Problemas respiratorios", "Alergias cutáneas", "Sensibilidad gastrointestinal"],
-      "dieta_organica_recomendada": ["Carne de pavo o conejo", "Camote", "Aceite de coco"],
-      "alimentos_a_evitar": ["Pollo comercial", "Trigo, soya y lácteos"]
-    },
-    {
-      "especie": "Gato", "raza": "Gato Persa",
-      "riesgos_geneticos": ["Enfermedad Renal Poliquística (PKD)", "Bolas de pelo", "Cristales urinarios"],
-      "dieta_organica_recomendada": ["Pollo hervido con alto contenido de caldo", "Pasta de malta orgánica", "Aceite de pescado"],
-      "alimentos_a_evitar": ["Pienso/pellets secos 100%", "Alimentos con alto fósforo"]
-    },
-    {
-      "especie": "Gato", "raza": "Maine Coon",
-      "riesgos_geneticos": ["Cardiomiopatía Hipertrófica", "Desgaste articular", "Displasia de cadera felina"],
-      "dieta_organica_recomendada": ["Corazón de res (Taurina)", "Mejillón de labios verdes", "Yema de huevo de codorniz"],
-      "alimentos_a_evitar": ["Dietas bajas en proteína de origen animal"]
-    }
-  ]
-}
-"""
+    # Creamos la base de datos de vectores (ChromaDB)
+    vectorstore = Chroma.from_documents(
+        documents=docs,
+        embedding=embeddings,
+        persist_directory="./chroma_db" # Aquí se guardará la "memoria" del PDF
+    )
+    return vectorstore
 
-# Transformamos este texto en Documentos que LangChain pueda entender
-datos_json = json.loads(datos_crudos)
-documentos_json = []
-for mascota in datos_json["mascotas"]:
-    contenido = f"Raza: {mascota['raza']}. Riesgos: {', '.join(mascota['riesgos_geneticos'])}. Dieta recomendada: {', '.join(mascota['dieta_organica_recomendada'])}. Evitar: {', '.join(mascota['alimentos_a_evitar'])}."
-    doc = Document(page_content=contenido, metadata={"raza": mascota["raza"]})
-    documentos_json.append(doc)
+def cargar_base_datos():
+    with open('datos_razas.json', 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-print("Cargando manual veterinario WSAVA (PDF)...")
-try:
-    pdf_loader = PyPDFLoader('WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf')
-    documentos_pdf = pdf_loader.load()
-except Exception as e:
-    print(f"Aviso: No se pudo cargar el PDF ({e}). Continuando solo con genética...")
-    documentos_pdf = []
+def mostrar_menu_veterinario(datos):
+    # Creamos una tabla con las razas disponibles en tu JSON
+    tabla_razas = []
+    for mascota in datos['mascotas']:
+        tabla_razas.append([mascota['raza'], mascota['especie'], "✔ Disponible"])
+    
+    print("\n" + "="*60)
+    print(" 🐾 ASISTENTE DE NUTRICIÓN VETERINARIA - DUOC UC 🐾 ")
+    print("="*60)
+    print("\nCatálogo de Pacientes Configurados:")
+    print(tabulate(tabla_razas, headers=["Raza", "Especie", "Estado"], tablefmt="fancy_grid"))
+    print("\nAyuda disponible: Guía WSAVA 2011 cargada.")
+    print("-" * 60)
 
-# Juntamos todo el conocimiento
-documentos_totales = documentos_json + documentos_pdf
-print("Documentos procesados exitosamente.")
+def asistente_final():
+    datos_mascotas = cargar_base_datos()
+    
+    if os.path.exists("./chroma_db"):
+        vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+    else:
+        vectorstore = preparar_base_conocimiento("WSAVA-Nutrition-Assessment-Guidelines-2011-JSAP.pdf")
+    
+    # Variable para guardar la última respuesta y mostrarla después de limpiar
+    ultima_respuesta = ""
+    
+    while True:
+        # --- COMANDO PARA LIMPIAR PANTALLA ---
+        # 'nt' es para Windows, 'posix' para Linux/Mac
+        os.system('cls' if os.name == 'nt' else 'clear')
+        
+        # Mostramos la interfaz (la tabla) siempre arriba
+        mostrar_menu_veterinario(datos_mascotas)
+        
+        # Si hay una respuesta anterior, la mostramos debajo de la tabla
+        if ultima_respuesta:
+            print(f"\n📋 ÚLTIMO DIAGNÓSTICO SUGERIDO:\n{ultima_respuesta}")
+            print("-" * 40)
 
-# 3. Cortar el texto y vectorizar (Tu Base de Conocimiento)
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-chunks = text_splitter.split_documents(documentos_totales)
+        user_input = input("\n🐾 Ingrese síntoma o consulta (o 'salir'): ")
+        
+        if user_input.lower() == 'salir': 
+            print("\nCerrando consulta. ¡Que tenga un buen día en la clínica!")
+            break
 
-print("Generando base de datos vectorial...")
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings)
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+        docs_relevantes = vectorstore.similarity_search(user_input, k=3)
+        contexto_pdf = "\n\n".join([doc.page_content for doc in docs_relevantes])
+        contexto_json = json.dumps(datos_mascotas, indent=2)
 
-# 4. El Cerebro (El Modelo y el Prompt)
-# CAMBIO 1: Subimos la temperatura de 0.2 a 0.7. 
-# Esto le da al modelo más "creatividad" e imaginación al redactar, sin perder los hechos.
-llm = ChatOpenAI(model="gpt-4o", temperature=0.7) 
+        try:
+            response = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": f"""Eres un experto veterinario de Duoc UC. 
+                        RESPONDE BASÁNDOTE EN:
+                        1. Datos de Razas (JSON): {contexto_json}
+                        2. Guía Clínica (PDF): {contexto_pdf}
+                        
+                        Usa el formato Markdown para tus respuestas.
+                        Si usas la guía clínica, indica siempre: '(Fuente: Protocolo WSAVA)'."""
+                    },
+                    {"role": "user", "content": user_input}
+                ],
+                model="gpt-4o-mini",
+            )
+            
+            # Guardamos la respuesta para que no se borre al limpiar la pantalla
+            ultima_respuesta = response.choices[0].message.content
+            
+        except Exception as e:
+            ultima_respuesta = f"❌ Error en el sistema: {e}"
 
-# CAMBIO 2: Rediseñamos el Prompt para darle una "Personalidad"
-template = """Eres un experto nutricionista veterinario, pero por sobre todo, eres muy empático, cercano y te encantan los animales. 
-Tu objetivo es ayudar a los dueños a cuidar a sus mascotas explicándoles las cosas de forma fácil de entender.
-
-Utiliza la siguiente información clínica para basar tu diagnóstico médico:
-{context}
-
-Instrucciones de comportamiento:
-1. Saluda al usuario de forma cálida y felicítalo por preocuparse por la salud de su mascota.
-2. Explica los riesgos genéticos de forma suave, sin asustar al dueño.
-3. Al recomendar la dieta orgánica, explica *POR QUÉ* esos ingredientes son buenos (desarrolla la idea, no hagas solo una lista).
-4. Usa un tono conversacional, como si estuvieran charlando en tu consulta clínica.
-5. Puedes usar emojis 🐾 para hacer el texto más amigable.
-6. Aportarás datos médicos SOLO del contexto entregado, pero tienes total libertad creativa para estructurar tu charla.
-
-Pregunta del dueño: {question}
-Respuesta experta:"""
-
-prompt = ChatPromptTemplate.from_template(template)
-
-# 5. La Cadena de IA
-cadena_nutricion = (
-    {"context": retriever, "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
-
-# --- ZONA DE PRUEBAS ---
 if __name__ == "__main__":
-    print("\n¡Sistema listo! Hagamos una prueba.")
-    pregunta_usuario = "Hola, tengo un Gato Persa. ¿Qué dieta orgánica me recomiendas y qué problemas de salud debo prevenir?"
-    
-    print(f"\nProcesando consulta: '{pregunta_usuario}'...\n")
-    
-    respuesta = cadena_nutricion.invoke(pregunta_usuario)
-    print(respuesta)
+    asistente_final()
