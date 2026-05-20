@@ -1,23 +1,37 @@
-NutriVet AI - Documentación Técnica v3.0
-🏗️ Arquitectura del Sistema
-NutriVet AI v3.0 implementa un patrón de Agente Autónomo con Ciclo de Razonamiento (ReAct).
+# 🐾 NutriVet AI v3.0
 
-Cerebro (LLM): Utiliza GPT-4o vía GitHub Models API para el procesamiento de lenguaje natural y la toma de decisiones.
+> **Agente Clínico Autónomo para Asesoría Nutricional Veterinaria**
 
-Memoria (ConversationBufferMemory): Mantiene un estado persistente del historial de conversación en st.session_state, permitiendo al agente recordar datos de sesiones previas.
+NutriVet AI es un sistema avanzado de inteligencia artificial diseñado para brindar recomendaciones nutricionales precisas, basadas en literatura clínica oficial, minimizando alucinaciones y garantizando la tenencia responsable de mascotas.
 
-Herramientas (StructuredTools): * Consultor_Medico_RAG: Basado en ChromaDB y create_stuff_documents_chain para recuperación semántica.
+---
 
-Calculadora_Nutricional: Lógica determinista de Python encapsulada en un decorador @tool para cálculo clínico.
+## 🏗️ Arquitectura del Sistema
+El sistema implementa un patrón **ReAct (Reason + Act)**, permitiendo al agente razonar sobre las necesidades del usuario y ejecutar herramientas de forma autónoma.
 
-Orquestador: AgentExecutor coordina el flujo, analizando la intención del usuario y seleccionando la herramienta adecuada de forma autónoma.
+### 🧠 Componentes Principales
+* **Cerebro (LLM):** GPT-4o (vía GitHub Models API).
+* **Orquestador:** `AgentExecutor` que coordina el flujo de trabajo.
+* **Memoria:** `ConversationBufferMemory` persistente (vía `st.session_state`).
+* **Herramientas (StructuredTools):**
+    * 🩺 **Consultor_Medico_RAG:** Recuperación semántica de datos clínicos con ChromaDB.
+    * 🧮 **Calculadora_Nutricional:** Lógica determinista para porciones diarias.
 
-🛠️ Justificación de Diseño
-La separación entre la lógica del agente y las herramientas garantiza una arquitectura modular y escalable (Clean Architecture). Al utilizar StructuredTool, se mejora la robustez frente a errores de inferencia de argumentos, cumpliendo con los estándares de producción de agentes LLM modernos.
+---
 
-🚀 Guía de Despliegue
-Instalar dependencias: py -m pip install -r Requerimientos.txt
+## 🛠️ Justificación de Diseño
+La arquitectura sigue los principios de **Clean Architecture**, separando la lógica del agente de las herramientas ejecutables.
+* **Robustez:** El uso de `StructuredTool` (decorador `@tool`) mejora la precisión en el *Function Calling*.
+* **Escalabilidad:** El diseño modular permite integrar nuevas herramientas (ej. gestión de historiales clínicos) sin modificar el núcleo del agente.
 
-Configurar entorno: Definir OPENAI_API_KEY (Token GitHub) en app.py.
+---
 
-Ejecución: py -m streamlit run app.py
+## 🚀 Guía de Despliegue
+
+### 1. Requisitos previos
+Asegúrate de tener Python 3.10+ instalado.
+
+### 2. Instalación
+Clona el repositorio e instala las dependencias:
+```bash
+py -m pip install -r Requerimientos.txt
