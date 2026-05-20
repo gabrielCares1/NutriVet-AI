@@ -31,7 +31,31 @@ La arquitectura sigue los principios de **Clean Architecture**, separando la ló
 ### 1. Requisitos previos
 Asegúrate de tener Python 3.10+ instalado.
 
-### 2. Instalación
+### 2. Instalación:
 Clona el repositorio e instala las dependencias:
 ```bash
 py -m pip install -r Requerimientos.txt
+```
+3. Configuración
+Crea o edita el archivo app.py y configura tu API Key:
+```bash
+os.environ["OPENAI_API_KEY"] = "TU_TOKEN_DE_GITHUB_AQUI"
+```
+4. Ejecución
+Inicia la interfaz de Streamlit:
+```bash
+py -m streamlit run app.py
+```
+
+Resultados esperados
+El sistema es capaz de:
+
+Identificar razas y riesgos genéticos (vía RAG).
+
+Calcular porciones diarias personalizadas.
+
+Mantener el contexto histórico de la consulta (Memoria).
+
+Actuar con un tono empático y profesional.
+
+
